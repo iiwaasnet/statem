@@ -53,13 +53,13 @@ start_link() ->
   gen_statem:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 liftup_receiver() ->
-  gen_statem:call(?SERVER, liftup_receiver).
+  gen_statem:cast(?SERVER, liftup_receiver).
 
 put_receiver() ->
-  gen_statem:call(?SERVER, put_receiver).
+  gen_statem:cast(?SERVER, put_receiver).
 
 dial(Number) ->
-  gen_statem:call(?SERVER, {dial, Number}).
+  gen_statem:cast(?SERVER, {dial, Number}).
 %%%===================================================================
 %%% gen_statem callbacks
 %%%===================================================================
@@ -131,19 +131,21 @@ format_status(_Opt, [_PDict, _StateName, _State]) ->
 %% @end
 %%--------------------------------------------------------------------
 receiver_down(enter, _, State) ->
-  {keep_state, State#{dial_num := []}};
-receiver_down(internal, liftup_receiver, State) ->
+  {keep_state, State#state{dial_num = []}};
+receiver_down(cast, liftup_receiver, State) ->
   {next_state, receiver_up, State};
-receiver_down(internal, Event, _) ->
-  io:printf("Event ~s cant be process while receiver is down.~n", Event),
-  {keep_state_and_date, [postpone]}.
+receiver_down(cast, Event, _) ->
+  io:fwrite("Event ~s cant be process while receiver is down.~n", Event),
+  {keep_state_and_data, [postpone]}.
 
 
 receiver_up(enter, _, _) ->
   {keep_state_and_data, [{state_timeout, 10000, busy}]};
-receiver_up(internal, put_receiver, _) ->
+receiver_up(state_timeout, busy, State) ->
+  {next_state, busy, State};
+receiver_up(cast, put_receiver, _) ->
   {next_state, receiver_down};
-receiver_up(internal, {dial, Number}, #state{dial_num = DialNumber} = State) ->
+receiver_up(cast, {dial, Number}, #state{dial_num = DialNumber} = State) ->
   PhoneNumber = DialNumber ++ [Number],
   case check_number(PhoneNumber) of
     incomplete ->
@@ -157,14 +159,17 @@ receiver_up(internal, {dial, Number}, #state{dial_num = DialNumber} = State) ->
 connecting(enter, _, State) ->
   {next_state, talking, State}.
 
-talking(internal, put_receiver, _) ->
+talking(cast, put_receiver, _) ->
   {next_state, receiver_down}.
 
-busy(internal, {put_receiver, _}, _) ->
+busy(enter, _, State) ->
+  io:fwrite("Line is busy..."),
+  keep_state_and_data;
+busy(cast, put_receiver, _) ->
   {next_state, receiver_down};
-busy(internal, Event, _) ->
-  io:printf("Event ~s cant be process while busy.~n", Event),
-  {keep_state_and_date, [postpone]}.
+busy(cast, Event, _) ->
+  io:fwrite("Event ~s cant be process while busy.~n", Event),
+  {keep_state_and_data, [postpone]}.
 
 check_number(PhoneNumber) ->
   if
