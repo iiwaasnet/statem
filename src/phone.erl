@@ -135,8 +135,8 @@ receiver_down(enter, _, State) ->
 receiver_down(cast, liftup_receiver, State) ->
   {next_state, receiver_up, State};
 receiver_down(cast, Event, _) ->
-  io:fwrite("Event ~s cant be process while receiver is down.~n", Event),
-  {keep_state_and_data, [postpone]}.
+  io:fwrite("Event ~p cant be process while receiver is down.~n", [Event]),
+  keep_state_and_data.
 
 
 receiver_up(enter, _, _) ->
@@ -156,20 +156,26 @@ receiver_up(cast, {dial, Number}, #state{dial_num = DialNumber} = State) ->
       {next_state, connecting, State#state{dial_num = PhoneNumber}}
   end.
 
-connecting(enter, _, State) ->
+connecting(enter, _, #state{dial_num = PhoneNumber}) ->
+  io:fwrite("Connecting to: ~s~n", [PhoneNumber]),
+  {keep_state_and_data, [{state_timeout, 3000, talking}]};
+connecting(state_timeout, talking, State) ->
   {next_state, talking, State}.
 
-talking(cast, put_receiver, _) ->
-  {next_state, receiver_down}.
+talking(enter, _, #state{dial_num = PhoneNumber}) ->
+  io:fwrite("Talking to: ~s~n", [PhoneNumber]),
+  keep_state_and_data;
+talking(cast, put_receiver, State) ->
+  {next_state, receiver_down, State}.
 
-busy(enter, _, State) ->
+busy(enter, _, _) ->
   io:fwrite("Line is busy..."),
   keep_state_and_data;
-busy(cast, put_receiver, _) ->
-  {next_state, receiver_down};
+busy(cast, put_receiver, State) ->
+  {next_state, receiver_down, State};
 busy(cast, Event, _) ->
-  io:fwrite("Event ~s cant be process while busy.~n", Event),
-  {keep_state_and_data, [postpone]}.
+  io:fwrite("Event ~p cant be process while busy.~n", [Event]),
+  keep_state_and_data.
 
 check_number(PhoneNumber) ->
   if
