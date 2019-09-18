@@ -177,16 +177,6 @@ busy(cast, Event, _) ->
   io:fwrite("Event ~p cant be process while busy.~n", [Event]),
   keep_state_and_data.
 
-check_number(PhoneNumber) ->
-  if
-    length(PhoneNumber) =:= 6 ->
-      valid;
-    length(PhoneNumber) < 6 ->
-      incomplete;
-    length(PhoneNumber) > 6 ->
-      invalid
-  end.
-
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
@@ -243,3 +233,12 @@ terminate(_Reason, _StateName, _State) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+check_number(PhoneNumber) ->
+  if
+    length(PhoneNumber) =:= 6 ->
+      valid;
+    length(PhoneNumber) < 6 ->
+      incomplete;
+    length(PhoneNumber) > 6 ->
+      invalid
+  end.
